@@ -5,18 +5,18 @@ namespace Aliyun.OSS.Samples
 {
     internal class Config
     {
-        public static string AccessKeyId = "<your access key id>";
+        public static string AccessKeyId = "LTAI9LdQf0B57x2H";
 
-        public static string AccessKeySecret = "<your access key secret>";
+        public static string AccessKeySecret = "YNWmOOR6G1E1HjcN2uRpjtCDLg8v0K";
 
-        public static string Endpoint = "<your endpoint>";
+        public static string Endpoint = "http://oss-cn-beijing.aliyuncs.com";
 
-        public static string DirToDownload = "<your local dir to download file>";
+        public static string DirToDownload = @"F:\demo1";
 
-        public static string FileToUpload = "<your local file to upload>";
+        public static string FileToUpload = @"F:\demo1\72.pdf";
 
-        public static string BigFileToUpload = "<your local big file to upload>";
-        public static string ImageFileToUpload = "<your local image file to upload>";
+        public static string BigFileToUpload = @"F:\demo1\72.pdf";
+        public static string ImageFileToUpload = @"F:\demo1";
         public static string CallbackServer = "<your callback server uri>";
     }
 }

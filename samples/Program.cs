@@ -12,11 +12,11 @@ namespace Aliyun.OSS.Samples
         {
             Console.WriteLine("Aliyun SDK for .NET Samples!");
 
-            const string bucketName = "<your bucket name>";
+            const string bucketName = "zjbtest1";
 
             try
             {
-                CreateBucketSample.CreateBucket(bucketName);
+                //       CreateBucketSample.CreateBucket(bucketName);
 
                 //ListBucketsSample.ListBuckets();
 
@@ -94,7 +94,7 @@ namespace Aliyun.OSS.Samples
 
                 //CNameSample.CNameOperation(bucketName);
 
-                //PostPolicySample.GenPostPolicy(bucketName);
+                PostPolicySample.GenPostPolicy(bucketName);
 
                 //DeleteBucketSample.DeleteNoEmptyBucket(bucketName);
 

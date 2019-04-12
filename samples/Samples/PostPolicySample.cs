@@ -90,7 +90,7 @@ namespace Aliyun.OSS.Samples
                 var signature = ComputeSignature(accessKeySecret, encPolicy);
 
                 var fileContent = "这是一行简单的测试文本";
-                var requestBody = "--" + boundary + "\r\n" 
+                var requestBody = "--" + boundary + "\r\n"
                         + "Content-Disposition: form-data; name=\"key\"\r\n"
                         + "\r\n" + "user/eric/${filename}" + "\r\n"
                         + "--" + boundary + "\r\n"
@@ -109,10 +109,10 @@ namespace Aliyun.OSS.Samples
                         + "Content-Disposition: form-data; name=\"Signature\"\r\n"
                         + "\r\n" + signature + "\r\n"
                         + "--" + boundary + "\r\n"
-                        + "Content-Disposition: form-data; name=\"file\"; filename=\"" + objectName + "\"\r\n\r\n" 
-                        + fileContent + "\r\n" 
-                        + "--" + boundary + "\r\n" 
-                        + "Content-Disposition: form-data; name=\"submit\"\r\n\r\nUpload to OSS\r\n" 
+                        + "Content-Disposition: form-data; name=\"file\"; filename=\"" + objectName + "\"\r\n\r\n"
+                        + fileContent + "\r\n"
+                        + "--" + boundary + "\r\n"
+                        + "Content-Disposition: form-data; name=\"submit\"\r\n\r\nUpload to OSS\r\n"
                         + "--" + boundary + "--\r\n";
 
                 webRequest.ContentLength = requestBody.Length;
@@ -145,7 +145,229 @@ namespace Aliyun.OSS.Samples
             }
             catch (OssException ex)
             {
-                Console.WriteLine("Failed with error code: {0}; Error info: {1}. \nRequestID:{2}\tHostID:{3}", 
+                Console.WriteLine("Failed with error code: {0}; Error info: {1}. \nRequestID:{2}\tHostID:{3}",
+                    ex.ErrorCode, ex.Message, ex.RequestId, ex.HostId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed with error info: {0}", ex.Message);
+            }
+        }
+
+        public static void GenPostPolicy2(string bucketName)
+        {
+            try
+            {
+                var expiration = DateTime.Now.AddMinutes(10);
+                var policyConds = new PolicyConditions();
+                policyConds.AddConditionItem("bucket", bucketName);
+                // $ must be escaped with backslash.
+                policyConds.AddConditionItem(MatchMode.Exact, PolicyConditions.CondKey, "user/eric/\\${filename}");
+                policyConds.AddConditionItem(MatchMode.StartWith, PolicyConditions.CondKey, "user/eric");
+                policyConds.AddConditionItem(MatchMode.StartWith, "x-oss-meta-tag", "dummy_etag");
+                policyConds.AddConditionItem(PolicyConditions.CondContentLengthRange, 1, 1024*1024*20);
+
+                var postPolicy = client.GeneratePostPolicy(expiration, policyConds);
+                var encPolicy = Convert.ToBase64String(Encoding.UTF8.GetBytes(postPolicy));
+                Console.WriteLine("Generated post policy: {0}", postPolicy);
+
+                var requestUri = BuildRequestUri(endpoint, bucketName);
+                System.Console.WriteLine("RequestUri:" + requestUri);
+                var boundary = "9431149156168";
+                var webRequest = (HttpWebRequest)WebRequest.Create(requestUri);
+                webRequest.Timeout = -1;
+                webRequest.Method = "POST";
+                webRequest.ContentType = "multipart/form-data; boundary=" + boundary;
+
+                var objectName = "xxx";
+                var signature = ComputeSignature(accessKeySecret, encPolicy);
+                //var fileContent = "这是一行简单的测试文本";
+                //var fileContent = File.ReadAllText(@"C:\Users\jbzhao.abcft\Desktop\intarface.txt");
+                var fileContent = File.ReadAllText(@"D:\xiangmu\pdf\aaaaaaaaa.pdf");
+                var before = "--" + boundary + "\r\n"
+                             + "Content-Disposition: form-data; name=\"key\"\r\n"
+                             + "\r\n" + "user/eric/${filename}" + "\r\n"
+                             + "--" + boundary + "\r\n"
+                             + "Content-Disposition: form-data; name=\"bucket\"\r\n"
+                             + "\r\n" + bucketName + "\r\n"
+                             + "--" + boundary + "\r\n"
+                             + "Content-Disposition: form-data; name=\"x-oss-meta-tag\"\r\n"
+                             + "\r\n" + "dummy_etag_xxx" + "\r\n"
+                             + "--" + boundary + "\r\n"
+                             + "Content-Disposition: form-data; name=\"OSSAccessKeyId\"\r\n"
+                             + "\r\n" + accessKeyId + "\r\n"
+                             + "--" + boundary + "\r\n"
+                             + "Content-Disposition: form-data; name=\"policy\"\r\n"
+                             + "\r\n" + encPolicy + "\r\n"
+                             + "--" + boundary + "\r\n"
+                             + "Content-Disposition: form-data; name=\"Signature\"\r\n"
+                             + "\r\n" + signature + "\r\n"
+                             + "--" + boundary + "\r\n"
+                             + "Content-Disposition: form-data; name=\"file\"; filename=\"" + objectName +
+                             "\"\r\n\r\n"
+                    ;//*/
+
+                var after = "\r\n"
+                            + "--" + boundary + "\r\n"//;/*
+                            + "Content-Disposition: form-data; name=\"submit\"\r\n\r\nUpload to OSS\r\n"
+                            + "--" + boundary + "--\r\n";//*/
+                webRequest.ContentLength = before.Length + fileContent.Length + after.Length;
+                using (var ms = new MemoryStream())
+                {
+                    var writer = new StreamWriter(ms, new UTF8Encoding());
+                    try
+                    {
+                        writer.Write(before );
+                        writer.Write(fileContent);
+                        writer.Write(after);
+                        writer.Flush();
+                        ms.Seek(0, SeekOrigin.Begin);
+
+                        webRequest.ContentLength = ms.Length;
+                        using (var requestStream = webRequest.GetRequestStream())
+                        {
+                            ms.WriteTo(requestStream);
+                        }
+                    }
+                    finally
+                    {
+                        writer.Dispose();
+                    }
+                }
+
+                var response = webRequest.GetResponse() as HttpWebResponse;
+                if (response.StatusCode == HttpStatusCode.NoContent)
+                {
+                    Console.WriteLine("Post object succeed!");
+                }
+            }
+            catch (OssException ex)
+            {
+                Console.WriteLine("Failed with error code: {0}; Error info: {1}. \nRequestID:{2}\tHostID:{3}",
+                    ex.ErrorCode, ex.Message, ex.RequestId, ex.HostId);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed with error info: {0}", ex.Message);
+            }
+        }
+
+
+
+        public static void GenPostPolicy222(string bucketName)
+        {
+            try
+            {
+                var expiration = DateTime.Now.AddMinutes(10);
+                var policyConds = new PolicyConditions();
+                policyConds.AddConditionItem("bucket", bucketName);
+                // $ must be escaped with backslash.
+                policyConds.AddConditionItem(MatchMode.Exact, PolicyConditions.CondKey, "user/eric/\\${filename}");
+                policyConds.AddConditionItem(MatchMode.StartWith, PolicyConditions.CondKey, "user/eric");
+                policyConds.AddConditionItem(MatchMode.StartWith, "x-oss-meta-tag", "dummy_etag");
+                policyConds.AddConditionItem(PolicyConditions.CondContentLengthRange, 1, 1024);
+
+                var postPolicy = client.GeneratePostPolicy(expiration, policyConds);
+                var encPolicy = Convert.ToBase64String(Encoding.UTF8.GetBytes(postPolicy));
+                Console.WriteLine("Generated post policy: {0}", postPolicy);
+
+                var requestUri = BuildRequestUri(endpoint, bucketName);
+                System.Console.WriteLine("RequestUri:" + requestUri);
+                var boundary = "9431149156168";
+                var webRequest = (HttpWebRequest)WebRequest.Create(requestUri);
+                webRequest.Timeout = -1;
+                webRequest.Method = "POST";
+                webRequest.ContentType = "multipart/form-data; boundary=" + boundary;
+
+
+
+                string filepath = @"D:\xiangmu\pdf\海康威视2014年年度报告.PDF";
+                var objectName = System.IO.Path.GetFileName(filepath);
+
+                var signature = ComputeSignature(accessKeySecret, encPolicy);
+
+               
+                var before = "--" + boundary + "\r\n"
+                                  + "Content-Disposition: form-data; name=\"key\"\r\n"
+                                  + "\r\n" + "user/eric/${filename}" + "\r\n"
+                                  + "--" + boundary + "\r\n"
+                                  + "Content-Disposition: form-data; name=\"bucket\"\r\n"
+                                  + "\r\n" + bucketName + "\r\n"
+                                  + "--" + boundary + "\r\n"
+                                  + "Content-Disposition: form-data; name=\"x-oss-meta-tag\"\r\n"
+                                  + "\r\n" + "dummy_etag_xxx" + "\r\n"
+                                  + "--" + boundary + "\r\n"
+                                  + "Content-Disposition: form-data; name=\"OSSAccessKeyId\"\r\n"
+                                  + "\r\n" + accessKeyId + "\r\n"
+                                  + "--" + boundary + "\r\n"
+                                  + "Content-Disposition: form-data; name=\"policy\"\r\n"
+                                  + "\r\n" + encPolicy + "\r\n"
+                                  + "--" + boundary + "\r\n"
+                                  + "Content-Disposition: form-data; name=\"Signature\"\r\n"
+                                  + "\r\n" + signature + "\r\n"
+                                  + "--" + boundary + "\r\n"
+                                  + "Content-Disposition: form-data; name=\"file\"; filename=\"" + objectName +
+                                  "\"\r\n\r\n"
+                              ;//*/
+
+                var after = "\r\n"
+                                  + "--" + boundary + "\r\n"//;/*
+                                  + "Content-Disposition: form-data; name=\"submit\"\r\n\r\nUpload to OSS\r\n"
+                                  + "--" + boundary + "--\r\n";//*/
+
+                //   webRequest.ContentLength = requestBody.Length;
+
+
+                byte[] beforeBytes = Encoding.UTF8.GetBytes(before);
+
+              
+
+                byte[] afterBytes = Encoding.UTF8.GetBytes(after);
+
+                long filesize = 0;
+                using (FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read))
+                {
+                    filesize = fs.Length;
+                }
+
+                webRequest.ContentLength = beforeBytes.Length + afterBytes.Length +filesize;
+
+                using (Stream postStream = webRequest.GetRequestStream())
+                {
+                    postStream.ReadTimeout = 1000*60;
+                    postStream.WriteTimeout = 1000 * 60;
+
+                    postStream.Write(beforeBytes, 0, beforeBytes.Length);
+
+                 //   postStream.Write(contentBytes,0,contentBytes.Length);
+
+                    using (FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read))
+                    {
+                        int bytesRead = 0;
+                        long bytesSoFar = 0;
+                        byte[] buffer = new byte[10240];
+                        while ((bytesRead = fs.Read(buffer, 0, buffer.Length)) != 0)
+                        {
+                            bytesSoFar += bytesRead;
+                            postStream.Write(buffer, 0, bytesRead);
+                            var UploadProgress = bytesSoFar * 1.0 / fs.Length;
+                        }
+                    }
+
+                    postStream.Write(afterBytes, 0, afterBytes.Length);
+                    postStream.Close();
+                }
+
+
+                var response = webRequest.GetResponse() as HttpWebResponse;
+                if (response.StatusCode == HttpStatusCode.NoContent)
+                {
+                    Console.WriteLine("Post object succeed!");
+                }
+            }
+            catch (OssException ex)
+            {
+                Console.WriteLine("Failed with error code: {0}; Error info: {1}. \nRequestID:{2}\tHostID:{3}",
                     ex.ErrorCode, ex.Message, ex.RequestId, ex.HostId);
             }
             catch (Exception ex)
